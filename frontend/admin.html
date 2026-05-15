@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TAIC — Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #f5f5f0;
+      color: #1a1a1a;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      min-height: 100vh;
+    }
+
+    header {
+      background: white;
+      border-bottom: 1px solid #e5e5e0;
+      padding: 16px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .header-left { display: flex; align-items: center; gap: 16px; }
+    header img { height: 20px; opacity: 0.85; }
+    header h1 { font-size: 13px; font-weight: 600; color: #888; letter-spacing: 0.05em; }
+
+    .live-badge {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 11px; font-weight: 500; color: #888;
+    }
+    .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #ccc; transition: background 0.3s; }
+    .live-dot.active { background: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,0.2); }
+
+    /* ── Login ── */
+    .login-wrap {
+      display: flex; align-items: center; justify-content: center;
+      min-height: calc(100vh - 57px);
+    }
+    .login-box {
+      background: white; border: 1px solid #e5e5e0; border-radius: 12px;
+      padding: 32px; width: 320px; display: flex; flex-direction: column; gap: 10px;
+    }
+    .login-box p { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+    .login-box input {
+      border: 1px solid #e5e5e0; border-radius: 8px; padding: 10px 14px;
+      font-family: 'Inter', sans-serif; font-size: 13px; outline: none; width: 100%; background: #fafaf8;
+    }
+    .login-box input:focus { border-color: #a3a3a3; background: white; }
+    .login-box button {
+      background: #1a1a1a; color: white; border: none; border-radius: 8px; padding: 10px;
+      font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer;
+    }
+    .login-box button:hover { background: #333; }
+    .login-error { color: #ef4444; font-size: 12px; }
+
+    /* ── Main ── */
+    main { max-width: 960px; margin: 0 auto; padding: 24px 20px; display: flex; flex-direction: column; gap: 20px; }
+
+    .section {
+      background: white; border: 1px solid #e5e5e0; border-radius: 12px; padding: 20px 24px;
+    }
+    .section-title {
+      font-size: 11px; font-weight: 600; color: #888; letter-spacing: 0.06em;
+      text-transform: uppercase; margin-bottom: 14px;
+    }
+
+    /* ── Canaux ── */
+    .channel-grid { display: flex; flex-direction: column; gap: 8px; }
+    .channel-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px; background: #fafaf8; border: 1px solid #e5e5e0;
+      border-radius: 8px; gap: 12px;
+    }
+    .channel-code {
+      font-family: monospace; font-size: 13px; font-weight: 600;
+      background: #f0f0ec; padding: 2px 8px; border-radius: 4px; color: #555;
+    }
+    .channel-name { flex: 1; font-size: 13px; color: #333; }
+    .channel-url { font-size: 11px; color: #aaa; font-family: monospace; }
+    .copy-btn {
+      border: 1px solid #e5e5e0; background: white; border-radius: 6px;
+      padding: 4px 10px; font-size: 11px; cursor: pointer; color: #555; white-space: nowrap;
+    }
+    .copy-btn:hover { background: #f5f5f0; }
+    .copy-btn.copied { color: #22c55e; border-color: #86efac; }
+
+    /* ── Formulaire ── */
+    .inline-form { display: flex; gap: 8px; flex-wrap: wrap; }
+    .inline-form input {
+      flex: 1; min-width: 120px;
+      border: 1px solid #e5e5e0; border-radius: 8px; padding: 8px 12px;
+      font-family: 'Inter', sans-serif; font-size: 13px; background: #fafaf8; outline: none;
+    }
+    .inline-form input:focus { border-color: #a3a3a3; background: white; }
+    .btn {
+      border: none; border-radius: 8px; padding: 8px 16px;
+      font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 500;
+      cursor: pointer; white-space: nowrap;
+    }
+    .btn-dark { background: #1a1a1a; color: white; }
+    .btn-dark:hover { background: #333; }
+    .btn-dark:disabled { opacity: 0.4; cursor: default; }
+    .btn-outline { background: white; color: #1a1a1a; border: 1px solid #e5e5e0; }
+    .btn-outline:hover { background: #f5f5f0; }
+    .btn-green { background: #16a34a; color: white; }
+    .btn-green:hover { background: #15803d; }
+    .btn-green:disabled { opacity: 0.4; cursor: default; }
+
+    .form-feedback { font-size: 12px; margin-top: 8px; min-height: 16px; }
+    .form-feedback.ok { color: #16a34a; }
+    .form-feedback.err { color: #ef4444; }
+
+    /* ── Toolbar messages ── */
+    .toolbar {
+      display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    }
+    .toolbar input, .toolbar select {
+      border: 1px solid #e5e5e0; border-radius: 8px; padding: 8px 14px;
+      font-family: 'Inter', sans-serif; font-size: 13px; background: white; outline: none;
+    }
+    .toolbar input { flex: 1; min-width: 160px; }
+    .toolbar input:focus, .toolbar select:focus { border-color: #a3a3a3; }
+    .toolbar-count { font-size: 12px; color: #999; white-space: nowrap; }
+
+    /* ── Cards messages ── */
+    .message-list { display: flex; flex-direction: column; gap: 8px; }
+    .message-card {
+      background: white; border: 1px solid #e5e5e0; border-radius: 10px;
+      padding: 14px 18px; display: flex; flex-direction: column; gap: 6px; transition: border-color 0.3s;
+    }
+    .message-card.new-card { border-color: #22c55e; animation: highlight 2s ease forwards; }
+    @keyframes highlight { 0% { background: #f0fdf4; } 100% { background: white; } }
+    .card-text { line-height: 1.6; color: #1a1a1a; }
+    .card-meta { display: flex; align-items: center; gap: 10px; font-size: 11px; color: #aaa; flex-wrap: wrap; }
+    .card-lang {
+      background: #f0f0ec; border-radius: 4px; padding: 1px 6px;
+      font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; color: #888;
+    }
+    .card-channel {
+      background: #eff6ff; border-radius: 4px; padding: 1px 8px;
+      font-size: 10px; font-weight: 600; color: #3b82f6; font-family: monospace;
+    }
+
+    .empty { text-align: center; color: #bbb; padding: 60px 0; font-size: 13px; }
+    .no-channels { color: #aaa; font-size: 13px; font-style: italic; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <img src="/icons/genius_taic_logo.png" alt="TAIC"/>
+    <h1>Admin</h1>
+  </div>
+  <div class="live-badge">
+    <div class="live-dot" id="liveDot"></div>
+    <span id="liveLabel">En attente…</span>
+  </div>
+</header>
+
+<div class="login-wrap" id="loginWrap">
+  <div class="login-box">
+    <p>Accès admin</p>
+    <input type="password" id="tokenInput" placeholder="Token…" autocomplete="off"/>
+    <button onclick="connect()">Accéder</button>
+    <span class="login-error" id="loginError"></span>
+  </div>
+</div>
+
+<main id="appMain" style="display:none">
+
+  <!-- Canaux -->
+  <div class="section">
+    <div class="section-title">Canaux clients</div>
+    <div class="channel-grid" id="channelGrid">
+      <div class="no-channels">Aucun canal créé.</div>
+    </div>
+  </div>
+
+  <!-- Créer un canal -->
+  <div class="section">
+    <div class="section-title">Nouveau canal</div>
+    <div class="inline-form">
+      <input type="text" id="newCode" placeholder="Code (ex: ALICE)" autocomplete="off" style="max-width:160px"/>
+      <input type="text" id="newName" placeholder="Nom du client" autocomplete="off"/>
+      <button class="btn btn-dark" id="createBtn" onclick="createChannel()">Créer</button>
+    </div>
+    <div class="form-feedback" id="createFeedback"></div>
+  </div>
+
+  <!-- Digest -->
+  <div class="section">
+    <div class="section-title">Email digest</div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <button class="btn btn-green" id="digestBtn" onclick="sendDigest()">Envoyer le digest du jour</button>
+      <span class="form-feedback" id="digestFeedback" style="margin-top:0"></span>
+    </div>
+  </div>
+
+  <!-- Transcriptions -->
+  <div class="section">
+    <div class="section-title">Transcriptions</div>
+    <div class="toolbar" style="margin-bottom:14px">
+      <input type="text" id="search" placeholder="Rechercher…" oninput="filterMessages()"/>
+      <select id="channelFilter" onchange="filterMessages()">
+        <option value="">Tous les canaux</option>
+      </select>
+      <span class="toolbar-count" id="count"></span>
+    </div>
+    <div class="message-list" id="list"></div>
+    <div class="empty" id="empty" style="display:none">Aucun message enregistré.</div>
+  </div>
+
+</main>
+
+<script>
+const BASE = '';
+let token = '';
+let allRows = [];
+let knownIds = new Set();
+let channelMap = {};
+
+async function connect() {
+  token = document.getElementById('tokenInput').value.trim();
+  const [chOk, msgOk] = await Promise.all([fetchChannels(), fetchMessages(true)]);
+  if (msgOk) {
+    document.getElementById('loginWrap').style.display = 'none';
+    document.getElementById('appMain').style.display = 'flex';
+    localStorage.setItem('admin_token', token);
+    startPolling();
+  }
+}
+
+// ── Canaux ──────────────────────────────────────────────────────────────────
+
+async function fetchChannels() {
+  try {
+    const res = await fetch(`${BASE}/api/admin/channels?token=${encodeURIComponent(token)}`);
+    if (!res.ok) return false;
+    const data = await res.json();
+    channelMap = {};
+    data.channels.forEach(c => channelMap[c.code] = c.name);
+    renderChannels(data.channels);
+    rebuildChannelFilter(data.channels);
+    return true;
+  } catch(e) { return false; }
+}
+
+function renderChannels(channels) {
+  const grid = document.getElementById('channelGrid');
+  if (!channels.length) {
+    grid.innerHTML = '<div class="no-channels">Aucun canal créé.</div>';
+    return;
+  }
+  const origin = window.location.origin;
+  grid.innerHTML = channels.map(c => {
+    const url = `${origin}/c/${c.code}`;
+    return `<div class="channel-row">
+      <span class="channel-code">${esc(c.code)}</span>
+      <span class="channel-name">${esc(c.name)}</span>
+      <span class="channel-url">${esc(url)}</span>
+      <button class="copy-btn" onclick="copyUrl(this, '${esc(url)}')">Copier URL</button>
+    </div>`;
+  }).join('');
+}
+
+function copyUrl(btn, url) {
+  navigator.clipboard.writeText(url).then(() => {
+    btn.textContent = '✓ Copié';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copier URL'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+async function createChannel() {
+  const code = document.getElementById('newCode').value.trim().toUpperCase();
+  const name = document.getElementById('newName').value.trim();
+  const fb = document.getElementById('createFeedback');
+  const btn = document.getElementById('createBtn');
+
+  fb.textContent = '';
+  fb.className = 'form-feedback';
+
+  if (!code || !name) {
+    fb.textContent = 'Code et nom requis.';
+    fb.className = 'form-feedback err';
+    return;
+  }
+
+  btn.disabled = true;
+  try {
+    const res = await fetch(`${BASE}/api/admin/channels?token=${encodeURIComponent(token)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, name }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      fb.textContent = data.detail || 'Erreur.';
+      fb.className = 'form-feedback err';
+    } else {
+      fb.textContent = `Canal "${data.code}" créé — URL : ${window.location.origin}/c/${data.code}`;
+      fb.className = 'form-feedback ok';
+      document.getElementById('newCode').value = '';
+      document.getElementById('newName').value = '';
+      await fetchChannels();
+    }
+  } catch(e) {
+    fb.textContent = 'Erreur réseau.';
+    fb.className = 'form-feedback err';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ── Digest ───────────────────────────────────────────────────────────────────
+
+async function sendDigest() {
+  const fb = document.getElementById('digestFeedback');
+  const btn = document.getElementById('digestBtn');
+  fb.textContent = '';
+  fb.className = 'form-feedback';
+  btn.disabled = true;
+  try {
+    const res = await fetch(`${BASE}/api/admin/send-digest?token=${encodeURIComponent(token)}`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) {
+      fb.textContent = data.detail || 'Erreur.';
+      fb.className = 'form-feedback err';
+    } else {
+      let msg = data.sent > 0
+        ? `✓ ${data.sent} email${data.sent > 1 ? 's' : ''} envoyé${data.sent > 1 ? 's' : ''} (${data.date})`
+        : data.message || 'Aucun email envoyé aujourd\'hui.';
+      if (data.errors && data.errors.length) {
+        msg += ' — Erreurs : ' + data.errors.map(e => `${e.channel}: ${e.error}`).join(', ');
+      }
+      fb.textContent = msg;
+      fb.className = `form-feedback ${data.sent > 0 && !data.errors?.length ? 'ok' : 'err'}`;
+    }
+  } catch(e) {
+    fb.textContent = 'Erreur réseau.';
+    fb.className = 'form-feedback err';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ── Messages ─────────────────────────────────────────────────────────────────
+
+async function fetchMessages(isInit = false) {
+  try {
+    const res = await fetch(`${BASE}/api/admin/transcriptions?token=${encodeURIComponent(token)}`);
+    if (res.status === 403) {
+      document.getElementById('loginError').textContent = 'Token incorrect.';
+      return false;
+    }
+    const data = await res.json();
+    const rows = data.transcriptions;
+
+    if (isInit) {
+      allRows = rows;
+      rows.forEach(r => knownIds.add(r.id));
+      renderMessages(filterMessages(false));
+    } else {
+      const newRows = rows.filter(r => !knownIds.has(r.id));
+      if (newRows.length) {
+        newRows.forEach(r => knownIds.add(r.id));
+        allRows = rows;
+        renderMessages(filterMessages(false), newRows.map(r => r.id));
+      }
+    }
+    pulse(true);
+    return true;
+  } catch(e) {
+    pulse(false);
+    return false;
+  }
+}
+
+function rebuildChannelFilter(channels) {
+  const sel = document.getElementById('channelFilter');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Tous les canaux</option>'
+    + channels.map(c => `<option value="${esc(c.code)}"${c.code === current ? ' selected' : ''}>${esc(c.name)} (${esc(c.code)})</option>`).join('');
+}
+
+function filterMessages(rerender = true) {
+  const q = document.getElementById('search')?.value.toLowerCase() || '';
+  const chFilter = document.getElementById('channelFilter')?.value || '';
+  let filtered = allRows;
+  if (q) filtered = filtered.filter(r => r.text.toLowerCase().includes(q));
+  if (chFilter) filtered = filtered.filter(r => r.channel_code === chFilter);
+  if (rerender) renderMessages(filtered);
+  return filtered;
+}
+
+function renderMessages(rows, newIds = []) {
+  const list = document.getElementById('list');
+  const empty = document.getElementById('empty');
+  const count = document.getElementById('count');
+
+  count.textContent = `${rows.length} message${rows.length !== 1 ? 's' : ''}`;
+
+  if (!rows.length) {
+    list.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  list.innerHTML = rows.map(r => {
+    const d = new Date(r.created_at);
+    const date = d.toLocaleDateString('fr-FR', {day:'2-digit', month:'short'});
+    const time = d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+    const dur = r.duration_ms ? formatDur(r.duration_ms) : '';
+    const isNew = newIds.includes(r.id);
+    const channelName = channelMap[r.channel_code] ? `${channelMap[r.channel_code]} (${r.channel_code})` : r.channel_code;
+    return `<div class="message-card${isNew ? ' new-card' : ''}">
+      <div class="card-text">${esc(r.text)}</div>
+      <div class="card-meta">
+        <span class="card-channel">${esc(channelName)}</span>
+        <span>${date} · ${time}</span>
+        ${dur ? `<span>${dur}</span>` : ''}
+        ${r.language ? `<span class="card-lang">${r.language}</span>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function startPolling() {
+  setInterval(() => fetchMessages(false), 5000);
+}
+
+function pulse(ok) {
+  document.getElementById('liveDot').classList.toggle('active', ok);
+  document.getElementById('liveLabel').textContent = ok ? 'En direct' : 'Déconnecté';
+}
+
+function formatDur(ms) {
+  const s = Math.round(ms / 1000);
+  return s < 60 ? `${s}s` : `${Math.floor(s/60)}m${String(s%60).padStart(2,'0')}s`;
+}
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Restore session
+const saved = localStorage.getItem('admin_token');
+if (saved) {
+  document.getElementById('tokenInput').value = saved;
+  connect();
+}
+document.getElementById('tokenInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') connect();
+});
+</script>
+</body>
+</html>

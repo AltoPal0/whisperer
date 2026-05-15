@@ -1,0 +1,21 @@
+# Configuration du déploiement Whisperer — copier en whisperer.conf et remplir les valeurs
+SERVICE="whisperer"
+PROJECT_ID="your-gcp-project-id"
+PROJECT_NUMBER="your-gcp-project-number"   # gcloud projects describe PROJECT_ID --format="value(projectNumber)"
+REGION="europe-west1"
+SQL_INSTANCE="whisperer-db"
+SCHEDULER_JOB="whisperer-daily-digest"
+TIMEZONE="Europe/Paris"
+
+# Email digest
+SMTP_HOST="mail.gandi.net"
+SMTP_PORT="465"
+SMTP_USER="you@example.com"
+SMTP_FROM="you@example.com"
+DIGEST_TO="recipient@example.com"
+
+# Noms des secrets GCP (les valeurs réelles sont dans Secret Manager)
+SECRET_OPENAI="openai-api-key"
+SECRET_DB_PASS="db-password"
+SECRET_ADMIN_TOKEN="admin-token"
+SECRET_SMTP_PASS="smtp-password"

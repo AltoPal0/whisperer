@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+
+# SQLite
+*.db
+*.sqlite3
+
+# Variables d'environnement
+.env
+.env.*
+!.env.example
+
+# Config de déploiement (contient infos infrastructure)
+*.conf
+!*.conf.example
+
+# Secrets / credentials
+*.json.secret
+service-account*.json
+credentials*.json
+*-key.json
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+.dockerignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node (si tooling frontend)
+node_modules/
+npm-debug.log*
+
+# Fichiers uploadés / générés
+backend/images/

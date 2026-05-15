@@ -1,0 +1,10 @@
+# Développement local (SQLite via aiosqlite)
+fastapi==0.115.0
+uvicorn[standard]==0.30.0
+httpx==0.27.0
+sqlalchemy[asyncio]==2.0.35
+aiosqlite==0.20.0
+python-multipart==0.0.12
+python-dotenv==1.0.1
+python-jose[cryptography]==3.3.0
+bcrypt==4.2.1
