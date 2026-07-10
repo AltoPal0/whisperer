@@ -7,10 +7,7 @@ SQL_INSTANCE="whisperer-db"
 SCHEDULER_JOB="whisperer-daily-digest"
 TIMEZONE="Europe/Paris"
 
-# Email digest
-SMTP_HOST="mail.gandi.net"
-SMTP_PORT="465"
-SMTP_USER="you@example.com"
+# Email digest (envoyé via l'API Resend — https://resend.com)
 SMTP_FROM="you@example.com"
 DIGEST_TO="recipient@example.com"
 
@@ -18,4 +15,4 @@ DIGEST_TO="recipient@example.com"
 SECRET_OPENAI="openai-api-key"
 SECRET_DB_PASS="db-password"
 SECRET_ADMIN_TOKEN="admin-token"
-SECRET_SMTP_PASS="smtp-password"
+SECRET_RESEND_KEY="resend-api-key"

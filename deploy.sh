@@ -73,17 +73,7 @@ create_secret_if_missing "$SECRET_OPENAI"      "OPENAI_API_KEY"
 create_secret_if_missing "$SECRET_DB_PASS"     "DB_PASS (mot de passe Cloud SQL)"
 create_secret_if_missing "$SECRET_ADMIN_TOKEN" "ADMIN_TOKEN (token admin)"
 
-if ! gcloud secrets describe "$SECRET_SMTP_PASS" --project="$PROJECT_ID" &>/dev/null; then
-  echo ""
-  echo "    Secret '$SECRET_SMTP_PASS' manquant."
-  read -rsp "    SMTP_PASS : " smtp_pass_value
-  echo
-  printf '%s' "$smtp_pass_value" | gcloud secrets create "$SECRET_SMTP_PASS" \
-    --project="$PROJECT_ID" --replication-policy=automatic --data-file=- --quiet
-  echo "    Secret '$SECRET_SMTP_PASS' créé."
-else
-  echo "    Secret '$SECRET_SMTP_PASS' : OK"
-fi
+create_secret_if_missing "$SECRET_RESEND_KEY" "RESEND_API_KEY"
 
 # ── 3. Artifact Registry ──────────────────────────────────────────────────────
 echo ""
@@ -103,16 +93,9 @@ fi
 
 # ── 4. Variables & secrets Cloud Run ─────────────────────────────────────────
 ENV_VARS="CLOUD_SQL_CONNECTION_NAME=${SQL_CONNECTION},DB_USER=whisperer,DB_NAME=whisperer"
-ENV_VARS="${ENV_VARS},SMTP_HOST=${SMTP_HOST},SMTP_PORT=${SMTP_PORT}"
-ENV_VARS="${ENV_VARS},SMTP_USER=${SMTP_USER},SMTP_FROM=${SMTP_FROM},DIGEST_TO=${DIGEST_TO}"
+ENV_VARS="${ENV_VARS},SMTP_FROM=${SMTP_FROM},DIGEST_TO=${DIGEST_TO}"
 
-SECRETS="${SECRET_OPENAI}=openai-api-key:latest"
-SECRETS="${SECRETS},DB_PASS=${SECRET_DB_PASS}:latest"
-SECRETS="${SECRETS},ADMIN_TOKEN=${SECRET_ADMIN_TOKEN}:latest"
-SECRETS="${SECRETS},SMTP_PASS=${SECRET_SMTP_PASS}:latest"
-
-# Reformater pour --set-secrets (KEY=secret-name:version)
-SET_SECRETS="OPENAI_API_KEY=${SECRET_OPENAI}:latest,DB_PASS=${SECRET_DB_PASS}:latest,ADMIN_TOKEN=${SECRET_ADMIN_TOKEN}:latest,SMTP_PASS=${SECRET_SMTP_PASS}:latest"
+SET_SECRETS="OPENAI_API_KEY=${SECRET_OPENAI}:latest,DB_PASS=${SECRET_DB_PASS}:latest,ADMIN_TOKEN=${SECRET_ADMIN_TOKEN}:latest,RESEND_API_KEY=${SECRET_RESEND_KEY}:latest"
 
 # ── 5. Déploiement Cloud Run ──────────────────────────────────────────────────
 echo ""

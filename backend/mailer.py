@@ -2,23 +2,18 @@ import asyncio
 import json
 import logging
 import os
-import smtplib
-from email.mime.application import MIMEApplication
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
+
+import httpx
 
 log = logging.getLogger(__name__)
 
-SMTP_HOST = os.environ.get("SMTP_HOST", "")
-SMTP_PORT = int(os.environ.get("SMTP_PORT", "465"))
-SMTP_USER = os.environ.get("SMTP_USER", "")
-SMTP_PASS = os.environ.get("SMTP_PASS", "")
-SMTP_FROM = os.environ.get("SMTP_FROM", "") or SMTP_USER
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
+SMTP_FROM = os.environ.get("SMTP_FROM", "")
 DIGEST_TO = os.environ.get("DIGEST_TO", "")
 
 
 def is_configured() -> bool:
-    return bool(SMTP_HOST and SMTP_USER and SMTP_PASS and DIGEST_TO)
+    return bool(RESEND_API_KEY and SMTP_FROM and DIGEST_TO)
 
 
 async def send_channel_digest(channel_code: str, channel_name: str, date_str: str, transcriptions: list[dict]) -> None:
@@ -30,31 +25,32 @@ async def send_channel_digest(channel_code: str, channel_name: str, date_str: st
         "transcriptions": transcriptions,
     }
     body = json.dumps(payload, ensure_ascii=False, indent=2)
+    filename = f"{channel_code}_{date_str}.json"
     subject = f"@{channel_code}"
 
-    def _send():
-        log.info("SMTP: connexion à %s:%s", SMTP_HOST, SMTP_PORT)
-        msg = MIMEMultipart()
-        msg["From"] = SMTP_FROM
-        msg["To"] = DIGEST_TO
-        msg["Subject"] = subject
-        msg.attach(MIMEText(f"{len(transcriptions)} note(s) — voir pièce jointe.", "plain", "utf-8"))
-        attachment = MIMEApplication(body.encode("utf-8"), Name=f"{channel_code}_{date_str}.json")
-        attachment["Content-Disposition"] = f'attachment; filename="{channel_code}_{date_str}.json"'
-        msg.attach(attachment)
+    import base64
+    attachment_b64 = base64.b64encode(body.encode("utf-8")).decode("ascii")
 
-        if SMTP_PORT == 465:
-            with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) as smtp:
-                smtp.set_debuglevel(1)
-                smtp.login(SMTP_USER, SMTP_PASS)
-                smtp.send_message(msg)
-        else:
-            with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as smtp:
-                smtp.set_debuglevel(1)
-                smtp.starttls()
-                smtp.login(SMTP_USER, SMTP_PASS)
-                smtp.send_message(msg)
+    resend_payload = {
+        "from": SMTP_FROM,
+        "to": [DIGEST_TO],
+        "subject": subject,
+        "text": f"{len(transcriptions)} note(s) — voir pièce jointe.",
+        "attachments": [
+            {
+                "filename": filename,
+                "content": attachment_b64,
+            }
+        ],
+    }
 
-        log.info("SMTP: email envoyé → %s (sujet: %s)", DIGEST_TO, subject)
-
-    await asyncio.to_thread(_send)
+    log.info("Resend: envoi digest %s → %s", channel_code, DIGEST_TO)
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"},
+            json=resend_payload,
+            timeout=30,
+        )
+        response.raise_for_status()
+        log.info("Resend: email envoyé, id=%s", response.json().get("id"))
