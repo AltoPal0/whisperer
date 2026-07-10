@@ -62,10 +62,17 @@ l'application, pas un identifiant tiers.
   section « Pourquoi un envoi d'email quotidien ») — ne pas le désactiver ou
   le simplifier sans vérifier avec l'utilisateur, ce n'est pas une feature
   annexe.
+- **Resend n'est pas l'architecture cible, juste le choix fait pour le
+  déploiement personnel d'origine.** Avant de reconduire tel quel le pipeline
+  email (Cloud Scheduler → Resend), demande à l'utilisateur quel mécanisme
+  d'export a du sens dans *son* environnement (bucket GCS, base partagée,
+  endpoint interne...). Ne suppose pas que Resend doit être conservé juste
+  parce que c'est ce que fait le code actuel — c'est un point de conception
+  ouvert, pas un détail d'implémentation à copier.
 
 ## Ordre de travail recommandé
 
 1. Lire `DEPLOY.md` en entier.
 2. Vérifier les outils disponibles (section ci-dessus) et signaler ce qui manque.
-3. Demander à l'utilisateur les valeurs qui ne peuvent pas être devinées (voir plus haut).
+3. Demander à l'utilisateur les valeurs qui ne peuvent pas être devinées (voir plus haut), **et** lui demander explicitement s'il veut garder le digest par email (Resend) ou le remplacer par un export direct adapté à son environnement.
 4. Suivre `DEPLOY.md` étape par étape, en confirmant avant chaque action qui crée de la facturation (instance Cloud SQL, Cloud Run) ou qui touche un compte GCP réel.

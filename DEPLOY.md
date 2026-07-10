@@ -25,6 +25,18 @@ SMTP classique (`smtplib`) précisément pour fiabiliser/simplifier cette copie
 de données : pas de gestion de connexion SMTP/serveur, juste un appel HTTP
 avec une clé API — plus robuste pour un envoi automatisé sans surveillance.
 
+**⚠️ Resend est une solution ad hoc, pas l'architecture cible.** Elle a été
+choisie pour le déploiement personnel d'origine, où il n'y avait ni
+infrastructure de stockage/synchro existante ni équipe à qui déléguer autre
+chose qu'un email. Dans un environnement de déploiement différent (infra
+d'entreprise, accès réseau interne, stockage partagé déjà en place...), le
+digest email par Resend n'est probablement **pas** la bonne solution
+d'export — une copie directe des données (export vers un bucket GCS, une
+base partagée, un endpoint interne, etc.) sera presque toujours plus simple
+et plus fiable qu'un aller-retour par email. Ne pas reconduire Resend par
+défaut : évaluer d'abord si l'environnement cible permet un export plus
+direct.
+
 ## Prérequis
 
 1. Un projet GCP avec la facturation activée.
