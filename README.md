@@ -5,9 +5,9 @@ enregistre sa voix, la transcription (via l'API OpenAI Whisper) apparaît
 automatiquement et reste consultable dans l'historique du canal. Pas de
 compte utilisateur — l'URL du canal fait office de clé d'accès partagée.
 
-Ce document explique comment installer et déployer Whisperer **from
-scratch** sur un nouveau projet Google Cloud Platform (GCP), à toi seul
-(aucune ressource GCP n'est partagée avec le projet d'origine).
+> **⚠️ Le déploiement se gère depuis `../SG2`, pas depuis ce dépôt.** Whisperer tourne sur la
+> plateforme SG2 (projet GCP `sg2-platform`, https://whisperer.sg-square.com). Ce repo ne contient
+> plus de script de déploiement — voir la section « Déploiement » plus bas.
 
 ## Fonctionnalités
 
@@ -19,112 +19,51 @@ scratch** sur un nouveau projet Google Cloud Platform (GCP), à toi seul
 ## Architecture
 
 - **Frontend** : PWA statique (HTML/CSS/JS), servie directement par le backend — pas d'hébergement séparé
-- **Backend** : FastAPI (Python), sur Cloud Run
-- **Base de données** : PostgreSQL sur Cloud SQL (SQLite en local, bascule automatique)
+- **Backend** : FastAPI (Python), sur Cloud Run (`europe-west9`, projet `sg2-platform`)
+- **Base de données** : PostgreSQL — base `whisperer` de l'instance Cloud SQL partagée `sg2-db` (SQLite en local, bascule automatique)
 - **Transcription** : API OpenAI Whisper
 - **Export quotidien** : API Resend + Cloud Scheduler (voir `DEPLOY.md`, section « Pourquoi un envoi d'email quotidien » — ce choix est spécifique au déploiement d'origine, pas une contrainte à reconduire telle quelle)
 
-## Prérequis
+## Modèle de données & flux applicatif
 
-- Un compte Google Cloud avec un moyen de paiement configuré (facturation activable)
-- Une clé API [OpenAI](https://platform.openai.com/api-keys) (pour Whisper)
-- Un compte [Resend](https://resend.com) avec une clé API et un domaine expéditeur vérifié — uniquement si tu gardes le digest email tel quel
-- [gcloud CLI](https://cloud.google.com/sdk/docs/install) installé sur ta machine
+Deux tables (`backend/db.py`, SQLAlchemy async, PostgreSQL/Cloud SQL en prod, SQLite en local via `DATABASE_URL`) :
+- `channels(code PK, name, created_at)` — un canal = un espace de dictée isolé, identifié uniquement par son `code` (l'URL `/c/{code}` fait office de clé d'accès, pas d'auth utilisateur).
+- `transcriptions(id, text, language, duration_ms, channel_code, created_at)`, indexée sur `(channel_code, created_at)`.
 
-## Installation from scratch
+Routes (`backend/main.py`) :
+- `GET /c/{code}` et `GET /manifest/c/{code}` — sert la PWA statique (`frontend/`) et son manifest, scopés au canal (icône/nom d'app par canal).
+- `GET /api/channel/{code}` — infos du canal.
+- `POST /api/transcribe` — reçoit l'audio enregistré côté client, l'envoie à l'API OpenAI Whisper (`backend/whisper_client.py`), stocke le texte résultant dans `transcriptions`.
+- `GET /api/transcriptions` — historique d'un canal (consultation par l'utilisateur du canal, pas admin).
+- `DELETE /api/transcriptions/{id}`.
+- `POST /api/admin/channels`, `GET /api/admin/channels`, `GET /api/admin/transcriptions` — panneau admin, protégé par `ADMIN_TOKEN` (`_check_admin`), pas de rôle/utilisateur : un seul jeton partagé.
+- `POST /api/admin/send-digest` — déclenche manuellement l'envoi du digest email (voir plus bas) ; c'est aussi cette route que Cloud Scheduler appelle chaque soir.
 
-### Étape 0 — Créer le projet GCP
+Le digest quotidien (`backend/mailer.py`) regroupe les transcriptions du jour par canal et les envoie par email via l'API Resend (pas de SMTP classique) — voir `DEPLOY.md` pour le détail et les réserves sur ce choix (solution ad hoc, pas l'architecture cible).
+
+## Déploiement
+
+Tout se pilote depuis le dossier `../SG2` (infra, secrets, sous-domaine : voir `../SG2/CLAUDE.md`) :
 
 ```bash
-gcloud auth login
-
-# Choisis un ID unique (lettres minuscules, chiffres, tirets)
-gcloud projects create TON_PROJECT_ID --name="Whisperer"
-
-gcloud config set project TON_PROJECT_ID
+cd ../SG2 && bash apps/whisperer.sh
 ```
 
-Relie ensuite un compte de facturation au projet (nécessaire pour créer des
-ressources) :
-```bash
-gcloud billing accounts list
-gcloud billing projects link TON_PROJECT_ID --billing-account=TON_BILLING_ACCOUNT_ID
-```
+- Service Cloud Run `whisperer` (`europe-west9`) — https://whisperer.sg-square.com, admin sur `/admin.html`.
+- Base `whisperer` dans l'instance partagée `sg2-db` (db-f1-micro, 25 connexions max) : le pool
+  SQLAlchemy est réduit à 2 + 2 par défaut (`DB_POOL_SIZE`, `DB_MAX_OVERFLOW`), ne pas l'augmenter
+  sans vérifier la marge de l'instance.
+- Digest quotidien : job Cloud Scheduler `whisperer-daily-digest` (23h, Europe/Paris) dans `sg2-platform`.
 
-Active les APIs Google nécessaires :
-```bash
-gcloud services enable \
-  run.googleapis.com \
-  sqladmin.googleapis.com \
-  secretmanager.googleapis.com \
-  cloudbuild.googleapis.com \
-  artifactregistry.googleapis.com \
-  cloudscheduler.googleapis.com
-```
-
-### Étape 1 — Créer l'instance Cloud SQL
+Créer un canal :
 
 ```bash
-gcloud sql instances create whisperer-db \
-  --database-version=POSTGRES_16 \
-  --tier=db-g1-small \
-  --region=europe-west1
-
-gcloud sql databases create whisperer --instance=whisperer-db
-
-gcloud sql users create whisperer \
-  --instance=whisperer-db \
-  --password="CHOISIS_UN_MOT_DE_PASSE"
-```
-
-Garde ce mot de passe, il servira à l'étape 3.
-
-Le schéma des tables (`channels`, `transcriptions`) est créé automatiquement
-au premier démarrage de l'application — rien à faire de plus ici.
-
-### Étape 2 — Cloner le dépôt et configurer
-
-```bash
-git clone <URL_DU_DEPOT_PRIVE>
-cd whisperer
-cp whisperer.conf.example whisperer.conf
-```
-
-Éditer `whisperer.conf` (ce fichier est ignoré par git, il reste local) :
-
-| Variable | Valeur |
-|---|---|
-| `PROJECT_ID` | l'ID choisi à l'étape 0 |
-| `PROJECT_NUMBER` | `gcloud projects describe TON_PROJECT_ID --format="value(projectNumber)"` |
-| `REGION` | `europe-west1` (garder la même région que Cloud SQL) |
-| `SQL_INSTANCE` | `whisperer-db` (ou le nom choisi à l'étape 1) |
-| `SMTP_FROM` | adresse expéditeur vérifiée sur Resend |
-| `DIGEST_TO` | adresse qui recevra le digest quotidien |
-
-### Étape 3 — Déployer
-
-```bash
-bash deploy.sh whisperer.conf
-```
-
-Le script va poser les permissions IAM nécessaires, créer les secrets
-manquants dans Secret Manager (il te les demande en interactif : clé
-OpenAI, mot de passe DB choisi à l'étape 1, un jeton admin à inventer, clé
-Resend), builder l'image via Cloud Build et déployer sur Cloud Run, puis
-programmer le digest quotidien dans Cloud Scheduler. Comptez 3 à 5 minutes.
-
-À la fin, il affiche l'URL du service Cloud Run et celle du panneau admin
-(`/admin.html`).
-
-### Étape 4 — Créer un premier canal
-
-```bash
-curl -X POST "https://TON_URL_CLOUD_RUN/api/admin/channels?token=TON_ADMIN_TOKEN" \
+curl -X POST "https://whisperer.sg-square.com/api/admin/channels?token=ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"code": "monequipe", "name": "Mon équipe"}'
 ```
 
-L'app est ensuite accessible et installable à `https://TON_URL_CLOUD_RUN/c/monequipe`.
+Le jeton est dans le secret `admin-token` de `sg2-platform`.
 
 ## Développement local
 
@@ -143,5 +82,5 @@ L'app est alors sur `http://localhost:8000`.
 
 ## Pour aller plus loin
 
-- **`DEPLOY.md`** : redéploiements ultérieurs, détails sur le choix Resend pour l'export, alternative `push.sh`.
-- **`CLAUDE.md`** : si tu utilises un agent IA (Claude Code ou autre) pour effectuer ce déploiement, ce fichier lui donne des garde-fous spécifiques à ce projet.
+- **`DEPLOY.md`** : détails sur le choix Resend pour l'export et notes techniques.
+- **`CLAUDE.md`** : garde-fous pour un agent IA qui travaille sur ce dépôt.

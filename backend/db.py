@@ -23,7 +23,14 @@ if CLOUD_SQL_CONNECTION_NAME:
             db=os.environ.get("DB_NAME", "whisperer"),
         )
 
-    engine = create_async_engine("postgresql+asyncpg://", async_creator=_getconn, echo=False)
+    # Pool réduit par défaut : l'instance Cloud SQL partagée (db-f1-micro) n'accepte que 25 connexions
+    engine = create_async_engine(
+        "postgresql+asyncpg://",
+        async_creator=_getconn,
+        echo=False,
+        pool_size=int(os.environ.get("DB_POOL_SIZE", "2")),
+        max_overflow=int(os.environ.get("DB_MAX_OVERFLOW", "2")),
+    )
 else:
     engine = create_async_engine(DATABASE_URL, echo=False)
 

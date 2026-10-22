@@ -55,3 +55,7 @@ npm-debug.log*
 
 # Fichiers uploadés / générés
 backend/images/
+
+# Backups de base de données
+backups/
+*.sql.gz
